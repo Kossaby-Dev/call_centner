@@ -39,80 +39,67 @@ import {
   UserPlus,
   Clock,
   MessageSquare,
+  Plus
 } from "lucide-react";
+import { router, usePage } from "@inertiajs/react";
+import { PageProps as InertiaPageProps } from "@inertiajs/core";
+
+interface PageProps extends InertiaPageProps {
+  auth: {
+    user: {
+      id: number;
+      name: string;
+      role: string;
+    };
+  };
+}
 
 interface Call {
-  id: string;
-  callerName: string;
-  callerNumber: string;
-  callerAvatar?: string;
+  id: number;
+  client_name: string;
+  client_phone: string;
+  call_type: 'entrant' | 'sortant';
   status: "incoming" | "active" | "on-hold" | "ended";
-  startTime: Date;
-  duration: number; // in seconds
-  notes?: string;
-  agentId?: string;
-  agentName?: string;
+  duration: number | null;
+  notes: string | null;
+  satisfaction_rating: number | null;
+  created_at: string;
 }
 
 interface CallManagementProps {
-  userRole?: "agent" | "supervisor";
-  calls?: Call[];
-  onAnswerCall?: (callId: string) => void;
-  onEndCall?: (callId: string) => void;
-  onTransferCall?: (callId: string, agentId: string) => void;
-  onCreateTicket?: (callId: string, ticketData: any) => void;
+  userRole: 'agent' | 'supervisor';
+  calls: Call[];
+  agents?: Array<{
+    id: number;
+    name: string;
+  }>;
+  links: any;
 }
 
 const CallManagement: React.FC<CallManagementProps> = ({
-  userRole = "agent",
-  calls = [
-    {
-      id: "1",
-      callerName: "John Doe",
-      callerNumber: "+1 (555) 123-4567",
-      status: "incoming",
-      startTime: new Date(),
-      duration: 0,
-    },
-    {
-      id: "2",
-      callerName: "Jane Smith",
-      callerNumber: "+1 (555) 987-6543",
-      status: "active",
-      startTime: new Date(Date.now() - 120000), // 2 minutes ago
-      duration: 120,
-    },
-    {
-      id: "3",
-      callerName: "Robert Johnson",
-      callerNumber: "+1 (555) 456-7890",
-      status: "on-hold",
-      startTime: new Date(Date.now() - 300000), // 5 minutes ago
-      duration: 300,
-    },
-  ] as Call[],
-  onAnswerCall = () => {},
-  onEndCall = () => {},
-  onTransferCall = () => {},
-  onCreateTicket = () => {},
+  userRole,
+  calls,
+  agents,
+  links,
 }) => {
-  const [activeCallId, setActiveCallId] = useState<string | null>(
-    calls.find((call) => call.status === "active")?.id || null,
-  );
+  const { auth } = usePage<PageProps>().props;
+  const [activeCallId, setActiveCallId] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [createTicketDialogOpen, setCreateTicketDialogOpen] = useState(false);
+  const [newCallDialogOpen, setNewCallDialogOpen] = useState(false);
   const [callNotes, setCallNotes] = useState("");
+  const [newCallData, setNewCallData] = useState({
+    client_name: "",
+    client_phone: "",
+    call_type: "entrant",
+    status: "active",
+    subject: "",
+    notes: "",
+  });
 
-  // Mock data for agents (would come from API in real app)
-  const availableAgents = [
-    { id: "agent1", name: "Alex Johnson", status: "available" },
-    { id: "agent2", name: "Maria Garcia", status: "available" },
-    { id: "agent3", name: "Sam Wilson", status: "busy" },
-    { id: "agent4", name: "Taylor Kim", status: "available" },
-  ];
-
-  const formatDuration = (seconds: number) => {
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return '00:00';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
@@ -120,46 +107,78 @@ const CallManagement: React.FC<CallManagementProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "incoming":
-        return "bg-yellow-500";
-      case "active":
-        return "bg-green-500";
-      case "on-hold":
-        return "bg-blue-500";
-      case "ended":
-        return "bg-gray-500";
+      case 'active':
+        return 'bg-green-500';
+      case 'completed':
+        return 'bg-blue-500';
+      case 'missed':
+        return 'bg-red-500';
       default:
-        return "bg-gray-500";
+        return 'bg-gray-500';
     }
   };
 
   const activeCall = calls.find((call) => call.id === activeCallId);
 
-  const handleAnswerCall = (callId: string) => {
-    setActiveCallId(callId);
-    onAnswerCall(callId);
+  const handleAnswerCall = (callId: number) => {
+    router.put(route('calls.update', callId), {
+      status: 'active',
+    });
   };
 
-  const handleEndCall = (callId: string) => {
-    if (activeCallId === callId) {
-      setActiveCallId(null);
-    }
-    onEndCall(callId);
+  const handleEndCall = (callId: number) => {
+    router.put(route('calls.update', callId), {
+      status: 'ended',
+    });
   };
 
-  const handleTransferCall = (agentId: string) => {
+  const handleTransferCall = (agentId: any) => {
     if (activeCallId) {
-      onTransferCall(activeCallId, agentId);
+      router.put(route('calls.update', activeCallId), {
+        agent_id: agentId,
+      });
       setTransferDialogOpen(false);
     }
   };
 
   const handleCreateTicket = () => {
     if (activeCallId) {
-      onCreateTicket(activeCallId, { notes: callNotes });
+      router.post(route('tickets.store'), {
+        call_id: activeCallId,
+        notes: callNotes,
+      });
       setCreateTicketDialogOpen(false);
       setCallNotes("");
     }
+  };
+
+  const handleCreateNewCall = () => {
+    if (!newCallData.client_name || !newCallData.client_phone) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    router.post(route('calls.store'), {
+      ...newCallData,
+      user_id: auth.user.id,
+      call_time: new Date().toISOString(),
+      status: 'active',
+    }, {
+      onSuccess: () => {
+        setNewCallDialogOpen(false);
+        setNewCallData({
+          client_name: "",
+          client_phone: "",
+          call_type: "entrant",
+          status: "active",
+          subject: "",
+          notes: "",
+        });
+      },
+      onError: (errors) => {
+        alert('Error creating call: ' + Object.values(errors).join(', '));
+      },
+    });
   };
 
   return (
@@ -167,8 +186,12 @@ const CallManagement: React.FC<CallManagementProps> = ({
       <div className="flex flex-col space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">Call Management</h2>
-          <Button variant="outline" className="flex items-center gap-2">
-            <PhoneCall size={16} />
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={() => setNewCallDialogOpen(true)}
+          >
+            <Plus size={16} />
             New Call
           </Button>
         </div>
@@ -181,8 +204,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
           </TabsList>
 
           <TabsContent value="active" className="space-y-4 mt-4">
-            {calls.filter((call) => ["active", "on-hold"].includes(call.status))
-              .length > 0 ? (
+            {calls.filter((call) => ["active", "on-hold"].includes(call.status)).length  > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {calls
                   .filter((call) => ["active", "on-hold"].includes(call.status))
@@ -197,17 +219,19 @@ const CallManagement: React.FC<CallManagementProps> = ({
                             <div
                               className={`w-3 h-3 rounded-full ${getStatusColor(call.status)}`}
                             ></div>
-                            <CardTitle>{call.callerName}</CardTitle>
+                            <CardTitle>{call.client_name}</CardTitle>
                           </div>
-                          <Badge
-                            variant={
+                          <Badge variant={
                               call.status === "active" ? "default" : "outline"
-                            }
-                          >
+                            }>
                             {call.status === "active" ? "Active" : "On Hold"}
                           </Badge>
                         </div>
-                        <CardDescription>{call.callerNumber}</CardDescription>
+                        {auth.user.role == "agent" && (
+                          <CardDescription>
+                            Handled by: {auth.user.name}
+                          </CardDescription>
+                        )}
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center gap-2 mb-2">
@@ -216,6 +240,11 @@ const CallManagement: React.FC<CallManagementProps> = ({
                             {formatDuration(call.duration)}
                           </span>
                         </div>
+                        {call.notes && (
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {call.notes}
+                          </p>
+                        )}
                       </CardContent>
                       <CardFooter className="flex justify-between pt-0">
                         <Button
@@ -251,23 +280,25 @@ const CallManagement: React.FC<CallManagementProps> = ({
           </TabsContent>
 
           <TabsContent value="incoming" className="space-y-4 mt-4">
-            {calls.filter((call) => call.status === "incoming").length > 0 ? (
+            {calls.filter((call) => ["incoming"].includes(call.status)).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {calls
-                  .filter((call) => call.status === "incoming")
+                  .filter((call) => call.status === 'incoming')
                   .map((call) => (
                     <Card key={call.id}>
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
-                            <CardTitle>{call.callerName}</CardTitle>
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            <CardTitle>{call.client_name}</CardTitle>
                           </div>
                           <Badge variant="secondary">Incoming</Badge>
                         </div>
-                        <CardDescription>{call.callerNumber}</CardDescription>
+                        <CardDescription>
+                          {new Date(call.created_at).toLocaleString()}
+                        </CardDescription>
                       </CardHeader>
-                      <CardFooter className="flex justify-between pt-4">
+                      <CardFooter className="flex justify-between pt-0"> 
                         <Button
                           variant="outline"
                           size="sm"
@@ -282,101 +313,100 @@ const CallManagement: React.FC<CallManagementProps> = ({
                         >
                           <Phone size={16} className="mr-1" /> Answer
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCreateTicketDialogOpen(true)}
+                        >
+                          <MessageSquare size={16} className="mr-1" /> Create Ticket
+                        </Button>
                       </CardFooter>
                     </Card>
                   ))}
               </div>
             ) : (
               <Card>
-                <CardContent className="flex items-center justify-center py-8">
-                  <p className="text-muted-foreground">
-                    No incoming calls at the moment
-                  </p>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <p className="text-muted-foreground">No incoming calls at the moment</p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
 
-          <TabsContent value="history" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Call History</CardTitle>
-                <CardDescription>
-                  View your recent call activity
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* This would be populated with call history data */}
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>MG</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">Michael Green</p>
-                        <p className="text-sm text-muted-foreground">
-                          +1 (555) 234-5678
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Outgoing</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Today, 10:23 AM
-                      </span>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>SL</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">Sarah Lee</p>
-                        <p className="text-sm text-muted-foreground">
-                          +1 (555) 876-5432
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Incoming</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Yesterday, 3:45 PM
-                      </span>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>DW</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">David Wong</p>
-                        <p className="text-sm text-muted-foreground">
-                          +1 (555) 345-6789
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Missed</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Yesterday, 11:20 AM
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="history" className="space-y-4 mt-4">
+            {calls.filter((call) => call.status === 'ended').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {calls
+                  .filter((call) => call.status === 'ended')
+                  .map((call) => (
+                    <Card key={call.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <CardTitle>{call.client_name}</CardTitle>
+                          </div>
+                          <Badge variant="outline">Completed</Badge>
+                        </div>
+                        <CardDescription>
+                          {new Date(call.created_at).toLocaleString()}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock size={16} className="text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            Duration: {formatDuration(call.duration)}
+                          </span>
+                        </div>
+                        {call.satisfaction_rating && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">
+                              Satisfaction: {call.satisfaction_rating}/5
+                            </span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <p className="text-muted-foreground">No call history</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
 
+        {/* Transfer Call Dialog */}
+        <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Transfer Call</DialogTitle>
+              <DialogDescription>
+                Select an agent to transfer the call to
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Select onValueChange={(value) => handleTransferCall(Number(value))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents?.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id.toString()}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        
         {activeCall && (
           <Card className="mt-4">
             <CardHeader>
@@ -386,19 +416,19 @@ const CallManagement: React.FC<CallManagementProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="flex flex-col items-center justify-center">
                   <Avatar className="h-24 w-24 mb-4">
-                    <AvatarImage src={activeCall.callerAvatar} />
+                    {/* <AvatarImage src={activeCall.callerAvatar} /> */}
                     <AvatarFallback className="text-2xl">
-                      {activeCall.callerName
+                      {activeCall.client_name
                         .split(" ")
                         .map((n) => n[0])
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
                   <h3 className="text-xl font-semibold">
-                    {activeCall.callerName}
+                    {activeCall.client_name}
                   </h3>
                   <p className="text-muted-foreground">
-                    {activeCall.callerNumber}
+                    {activeCall.client_phone}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <div
@@ -461,7 +491,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
                                   <SelectValue placeholder="Select an agent" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {availableAgents.map((agent) => (
+                                  {/* {availableAgents.map((agent) => (
                                     <SelectItem
                                       key={agent.id}
                                       value={agent.id}
@@ -470,7 +500,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
                                       {agent.name}{" "}
                                       {agent.status !== "available" && "(Busy)"}
                                     </SelectItem>
-                                  ))}
+                                  ))} */}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -578,53 +608,123 @@ const CallManagement: React.FC<CallManagementProps> = ({
           </Card>
         )}
 
-        {userRole === "supervisor" && (
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Agent Call Status</CardTitle>
-              <CardDescription>
-                Monitor your team's call activity
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {availableAgents.map((agent) => (
-                  <div
-                    key={agent.id}
-                    className="flex items-center justify-between py-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>
-                          {agent.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{agent.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {agent.status === "available"
-                            ? "Available"
-                            : "In a call"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-3 h-3 rounded-full ${agent.status === "available" ? "bg-green-500" : "bg-yellow-500"}`}
-                      ></div>
-                      <Button variant="ghost" size="sm">
-                        <UserPlus size={16} className="mr-1" /> Assign Call
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+       
+
+        {/* New Call Dialog */}
+        <Dialog open={newCallDialogOpen} onOpenChange={setNewCallDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Call</DialogTitle>
+              <DialogDescription>
+                Enter the details for the new call
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label htmlFor="client_name" className="text-sm font-medium">
+                  Client Name *
+                </label>
+                <Input
+                  id="client_name"
+                  placeholder="Enter client name"
+                  value={newCallData.client_name}
+                  onChange={(e) => 
+                    setNewCallData(prev => ({ ...prev, client_name: e.target.value }))
+                  }
+                />
               </div>
-            </CardContent>
-          </Card>
-        )}
+
+              <div className="grid gap-2">
+                <label htmlFor="client_phone" className="text-sm font-medium">
+                  Client Phone *
+                </label>
+                <Input
+                  id="client_phone"
+                  placeholder="Enter client phone number"
+                  value={newCallData.client_phone}
+                  onChange={(e) => 
+                    setNewCallData(prev => ({ ...prev, client_phone: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="call_type" className="text-sm font-medium">
+                  Call Type
+                </label>
+                <Select
+                  value={newCallData.call_type}
+                  onValueChange={(value) => 
+                    setNewCallData(prev => ({ ...prev, call_type: value }))
+                  }
+                >
+                  <SelectTrigger id="call_type">
+                    <SelectValue placeholder="Select call type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entrant">Entrant</SelectItem>
+                    <SelectItem value="sortant">Sortant</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="call_type" className="text-sm font-medium">
+                  Status
+                </label>
+                <Select
+                  value={newCallData.status}
+                  onValueChange={(value) => 
+                    setNewCallData(prev => ({ ...prev, status: value }))
+                  }
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Select Call Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="on-hold">On Hold</SelectItem>
+                    <SelectItem value="incoming">Incoming</SelectItem>
+                    <SelectItem value="ended">Ended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="subject" className="text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="subject"
+                  placeholder="Enter call subject"
+                  value={newCallData.subject}
+                  onChange={(e) => 
+                    setNewCallData(prev => ({ ...prev, subject: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="notes" className="text-sm font-medium">
+                  Notes
+                </label>
+                <Input
+                  id="notes"
+                  placeholder="Enter call notes"
+                  value={newCallData.notes}
+                  onChange={(e) => 
+                    setNewCallData(prev => ({ ...prev, notes: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewCallDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateNewCall}>Create Call</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ class Call extends Model
         'subject',
         'notes',
         'call_type',
+        'status',
     ];
 
 
