@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Tickets;
 
+use App\Http\Controllers\Controller;
+use App\Models\Ticket;
 use App\Models\TicketComment;
 use Illuminate\Http\Request;
 
@@ -10,32 +12,26 @@ class TicketCommentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Ticket $ticket)
     {
-        $comments = TicketComment::all();
+        $comments = $ticket->comments()->get();
         return response()->json($comments);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, Ticket $ticket)
     {
         $request->validate([
-            'ticket_id' => 'required|exists:tickets,id',
             'user_id' => 'required|exists:users,id',
             'comment' => 'required|string',
         ]);
 
-        $comment = TicketComment::create($request->all());
+        $comment = $ticket->comments()->create([
+            'user_id' => $request->user_id,
+            'comment' => $request->comment
+        ]);
 
         return response()->json($comment, 201);
     }
@@ -43,33 +39,32 @@ class TicketCommentController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(TicketComment $ticketComment)
+    public function show(Ticket $ticket, TicketComment $comment)
     {
-        $comment = TicketComment::findOrFail($ticketComment->id);
-        return response()->json($comment);
-    }
+        // Ensure the comment belongs to the ticket
+        if ($comment->ticket_id !== $ticket->id) {
+            return response()->json(['message' => 'Comment not found for this ticket'], 404);
+        }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(TicketComment $ticketComment)
-    {
-        //
+        return response()->json($comment);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, TicketComment $ticketComment)
+    public function update(Request $request, Ticket $ticket, TicketComment $comment)
     {
+        // Ensure the comment belongs to the ticket
+        if ($comment->ticket_id !== $ticket->id) {
+            return response()->json(['message' => 'Comment not found for this ticket'], 404);
+        }
+
         $request->validate([
-            'ticket_id' => 'required|exists:tickets,id',
-            'user_id' => 'required|exists:users,id',
-            'comment' => 'required|string',
+            'user_id' => 'sometimes|required|exists:users,id',
+            'comment' => 'sometimes|required|string',
         ]);
 
-        $comment = TicketComment::findOrFail($ticketComment->id);
-        $comment->update($request->all());
+        $comment->update($request->only(['user_id', 'comment']));
 
         return response()->json($comment);
     }
@@ -77,9 +72,13 @@ class TicketCommentController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(TicketComment $ticketComment)
+    public function destroy(Ticket $ticket, TicketComment $comment)
     {
-        $comment = TicketComment::findOrFail($ticketComment->id);
+        // Ensure the comment belongs to the ticket
+        if ($comment->ticket_id !== $ticket->id) {
+            return response()->json(['message' => 'Comment not found for this ticket'], 404);
+        }
+
         $comment->delete();
 
         return response()->json(['message' => 'Comment deleted successfully']);
