@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tickets;
 
+use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Http\Request;

@@ -88,15 +88,6 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
   const [isTicketDetailOpen, setIsTicketDetailOpen] = useState(false);
   const [newResponse, setNewResponse] = useState("");
 
-  const [newTicketData, setNewTicketData] = useState({
-    client_name: "",
-    client_phone: "",
-    description: "",
-    status: "active",
-    subject: "",
-    notes: "",
-  });
-
   // State for ticket columns
   const [ticketColumns, setTicketColumns] = useState<{
     [key: string]: { title: string; tickets: Ticket[] };
@@ -533,39 +524,28 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
                 Subject
                 </label>
                 <Input
-                  id="subject"
+                  id="title"
                   className="col-span-3"
                   placeholder="Brief description of the issue"
                   required
                 />
               </div>
-              <div className="grid gap-4 py-4">
-              <div className="grid gap-4 py-4">
-                <label htmlFor="client_name" className="text-sm font-medium">
-                  Client Name *
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="customer" className="text-right font-medium">
+                  Customer
                 </label>
-                <Input
-                  id="client_name"
-                  placeholder="Enter client name"
-                  value={newCallData.client_name}
-                  onChange={(e) => 
-                    setNewCallData(prev => ({ ...prev, client_name: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-4 py-4">
-                <label htmlFor="client_phone" className="text-sm font-medium">
-                  Client Phone *
-                </label>
-                <Input
-                  id="client_phone"
-                  placeholder="Enter client phone number"
-                  value={newCallData.client_phone}
-                  onChange={(e) => 
-                    setNewCallData(prev => ({ ...prev, client_phone: e.target.value }))
-                  }
-                />
+                <Select defaultValue="">
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="john-doe">John Doe</SelectItem>
+                    <SelectItem value="jane-smith">Jane Smith</SelectItem>
+                    <SelectItem value="robert-johnson">
+                      Robert Johnson
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="priority" className="text-right font-medium">

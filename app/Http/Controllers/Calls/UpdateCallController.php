@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Calls;
 
+
+use App\Http\Controllers\Controller;
 use App\Models\Call;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

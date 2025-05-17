@@ -401,10 +401,10 @@ const DashboardView = ({
         )}
 
         {/* Call Management Tab */}
-        {activeTab === "calls" && <CallManagement userRole={userRole} />}
+        {/* {activeTab === "calls" && <CallManagement userRole={userRole} />} */}
 
         {/* Ticket System Tab */}
-        {activeTab === "tickets" && <TicketSystem userRole={userRole} />}
+        {/* {activeTab === "tickets" && <TicketSystem userRole={userRole} />} */}
 
         {/* Agent Management Tab (Supervisor only) */}
         {activeTab === "agents" && userRole === "supervisor" && (

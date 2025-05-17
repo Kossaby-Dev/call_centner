@@ -7,6 +7,7 @@ import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/call/radio-group";
 import AuthLayout from '@/layouts/auth-layout';
 
 type RegisterForm = {
@@ -14,6 +15,7 @@ type RegisterForm = {
     email: string;
     password: string;
     password_confirmation: string;
+    role: string;
 };
 
 export default function Register() {
@@ -22,6 +24,7 @@ export default function Register() {
         email: '',
         password: '',
         password_confirmation: '',
+        role: "agent",
     });
 
     const submit: FormEventHandler = (e) => {
@@ -84,7 +87,6 @@ export default function Register() {
                         />
                         <InputError message={errors.password} />
                     </div>
-
                     <div className="grid gap-2">
                         <Label htmlFor="password_confirmation">Confirm password</Label>
                         <Input
@@ -99,6 +101,27 @@ export default function Register() {
                             placeholder="Confirm password"
                         />
                         <InputError message={errors.password_confirmation} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="role">Role</Label>
+                        <RadioGroup
+                            onValueChange={(e) => setData('role', e)}
+                            defaultValue={data.role}
+                            className="flex space-x-4"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="agent" id="agent" />
+                              <Label htmlFor="agent">Agent</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem
+                                value="supervisor"
+                                id="supervisor"
+                              />
+                              <Label htmlFor="supervisor">Supervisor</Label>
+                            </div>
+                          </RadioGroup>
+                        <InputError message={errors.role} />
                     </div>
 
                     <Button type="submit" className="mt-2 w-full" tabIndex={5} disabled={processing}>
