@@ -15,12 +15,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->dateTime('call_time');
-            $table->integer('duration')->comment('Durée en secondes');
             $table->string('client_name');
             $table->string('client_phone');
             $table->text('subject');
             $table->text('notes')->nullable();
-            $table->enum('call_type', ['entrant', 'sortant']);
+            $table->integer('duration')->nullable()->comment('Duration in seconds');
+            $table->enum('call_type', ['incoming', 'outgoing']);
             $table->timestamps();
         });
     }

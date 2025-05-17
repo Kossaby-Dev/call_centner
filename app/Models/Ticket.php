@@ -14,8 +14,6 @@ class Ticket extends Model
         'call_id',
         'created_by',
         'assigned_to',
-        'client_name',
-        'client_phone',
         'subject',
         'description',
         'priority',

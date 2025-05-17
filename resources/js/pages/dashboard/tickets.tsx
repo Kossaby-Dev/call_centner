@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import TicketSystem from "@/components/tickets/TicketSystem";
 
@@ -11,8 +11,44 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+
+interface Ticket {
+    id: string;
+    subject: string;
+    description: string;
+    status: "open" | "in-progress" | "resolved" | "closed";
+    priority: "low" | "medium" | "high" | "urgent";
+    createdAt: string;
+    updatedAt: string;
+    assigned_to?: string;
+    client_name: string;
+    client_phone: string;
+    // responses: {
+    //   id: string;
+    //   text: string;
+    //   createdAt: string;
+    //   user: {
+    //     name: string;
+    //     role: string;
+    //   };
+    // }[];
+  }
+
+interface PageProps {
+    [key: string]: any;
+    userRole: 'supervisor' | 'agent';
+    tickets: {
+        data: Ticket[];
+        links: any;
+    };
+    agents?: Array<{
+        id: number;
+        name: string;
+    }>;
+}
+
 export default function Tickets() {
-    const [userRole, setUserRole] = useState("supervisor");
+    const { userRole, tickets, agents } = usePage<PageProps>().props;
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tickets" />
@@ -23,7 +59,11 @@ export default function Tickets() {
                             ? "Supervisor Dashboard"
                             : "Agent Dashboard"}
                     </h1>
-                    <TicketSystem userRole={userRole} />
+                    <TicketSystem
+                        userRole={userRole}
+                        tickets={tickets.data}
+                        links={tickets.links}
+                    />
                 </div>
             </div>
         </AppLayout>

@@ -17,12 +17,10 @@ return new class extends Migration
             $table->foreignId('call_id')->nullable()->constrained('calls')->onDelete('set null');
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
-            $table->string('client_name');
-            $table->string('client_phone');
             $table->string('subject');
             $table->text('description');
-            $table->enum('priority', ['basse', 'moyenne', 'haute', 'critique'])->default('moyenne');
-            $table->enum('status', ['nouveau', 'en_cours', 'en_attente', 'résolu', 'fermé'])->default('nouveau');
+            $table->enum('priority', ["low" , "medium" , "high" , "urgent"])->default('medium');
+            $table->enum('status', ["open" , "in-progress" , "resolved" , "closed"])->default('open');
             $table->timestamps();
         });
     }

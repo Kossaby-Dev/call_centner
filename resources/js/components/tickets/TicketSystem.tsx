@@ -46,34 +46,41 @@ import { Separator } from "@/components/ui/call/separator";
 
 interface Ticket {
   id: string;
-  title: string;
+  subject: string;
   description: string;
   status: "open" | "in-progress" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
   createdAt: string;
   updatedAt: string;
-  assignedTo?: string;
-  customer: {
-    name: string;
-    email: string;
-    phone: string;
-  };
-  responses: {
-    id: string;
-    text: string;
-    createdAt: string;
-    user: {
-      name: string;
-      role: string;
-    };
-  }[];
+  assigned_to?: string;
+  client_name: string;
+  client_phone: string;
+  // responses: {
+  //   id: string;
+  //   text: string;
+  //   createdAt: string;
+  //   user: {
+  //     name: string;
+  //     role: string;
+  //   };
+  // }[];
 }
 
 interface TicketSystemProps {
-  userRole?: string;
+  userRole: 'agent' | 'supervisor';
+  tickets: Ticket[];
+  // agents?: Array<{
+  //   id: number;
+  //   name: string;
+  // }>;
+  links: any;
 }
 
-const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
+const TicketSystem: React.FC<TicketSystemProps> = ({
+  userRole,
+  tickets,
+  links,
+}) => {
   const [selectedTab, setSelectedTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -81,93 +88,22 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
   const [isTicketDetailOpen, setIsTicketDetailOpen] = useState(false);
   const [newResponse, setNewResponse] = useState("");
 
+  const [newTicketData, setNewTicketData] = useState({
+    client_name: "",
+    client_phone: "",
+    description: "",
+    status: "active",
+    subject: "",
+    notes: "",
+  });
+
   // State for ticket columns
   const [ticketColumns, setTicketColumns] = useState<{
     [key: string]: { title: string; tickets: Ticket[] };
   }>({});
 
   // Mock data for tickets
-  const mockTickets: Ticket[] = [
-    {
-      id: "TKT-001",
-      title: "Unable to access account",
-      description:
-        "Customer reports being unable to log into their account after password reset.",
-      status: "open",
-      priority: "high",
-      createdAt: "2023-06-15T10:30:00Z",
-      updatedAt: "2023-06-15T10:30:00Z",
-      customer: {
-        name: "John Doe",
-        email: "john.doe@example.com",
-        phone: "+1 555-123-4567",
-      },
-      responses: [],
-    },
-    {
-      id: "TKT-002",
-      title: "Billing discrepancy",
-      description:
-        "Customer reports being charged twice for the monthly subscription.",
-      status: "in-progress",
-      priority: "medium",
-      createdAt: "2023-06-14T15:45:00Z",
-      updatedAt: "2023-06-15T09:20:00Z",
-      assignedTo: "Sarah Johnson",
-      customer: {
-        name: "Jane Smith",
-        email: "jane.smith@example.com",
-        phone: "+1 555-987-6543",
-      },
-      responses: [
-        {
-          id: "RES-001",
-          text: "I have checked the billing system and confirmed the double charge. Processing refund now.",
-          createdAt: "2023-06-15T09:20:00Z",
-          user: {
-            name: "Sarah Johnson",
-            role: "Agent",
-          },
-        },
-      ],
-    },
-    {
-      id: "TKT-003",
-      title: "Service outage report",
-      description:
-        "Customer experiencing service disruption in the Dallas area.",
-      status: "resolved",
-      priority: "urgent",
-      createdAt: "2023-06-13T08:15:00Z",
-      updatedAt: "2023-06-15T11:45:00Z",
-      assignedTo: "Michael Chen",
-      customer: {
-        name: "Robert Johnson",
-        email: "robert.j@example.com",
-        phone: "+1 555-456-7890",
-      },
-      responses: [
-        {
-          id: "RES-002",
-          text: "Identified network issue in Dallas data center. Engineering team notified.",
-          createdAt: "2023-06-13T09:30:00Z",
-          user: {
-            name: "Michael Chen",
-            role: "Agent",
-          },
-        },
-        {
-          id: "RES-003",
-          text: "Network issue resolved. Service restored to all customers in the affected area.",
-          createdAt: "2023-06-15T11:45:00Z",
-          user: {
-            name: "Michael Chen",
-            role: "Agent",
-          },
-        },
-      ],
-    },
-  ];
+  const mockTickets: Ticket[] = tickets;
 
   // Initialize ticket columns
   React.useEffect(() => {
@@ -204,9 +140,9 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
     if (
       searchQuery &&
       !(
-        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ticket.client_name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     ) {
       return false;
@@ -451,7 +387,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                                     {ticket.id}
                                   </span>
                                   <h3 className="font-semibold text-sm">
-                                    {ticket.title}
+                                    {ticket.subject}
                                   </h3>
                                 </div>
                                 <p className="text-xs text-gray-600 mt-1 line-clamp-2">
@@ -462,7 +398,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                                   <div className="flex items-center">
                                     <User className="mr-1 h-3 w-3" />
                                     <span className="truncate max-w-[100px]">
-                                      {ticket.customer.name}
+                                      {ticket.client_name}
                                     </span>
                                   </div>
 
@@ -520,7 +456,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                           <span className="font-medium text-gray-500">
                             {ticket.id}
                           </span>
-                          <h3 className="font-semibold">{ticket.title}</h3>
+                          <h3 className="font-semibold">{ticket.subject}</h3>
                         </div>
                         <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                           {ticket.description}
@@ -541,11 +477,11 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center">
                           <User className="mr-1 h-4 w-4" />
-                          <span>{ticket.customer.name}</span>
+                          <span>{ticket.client_name}</span>
                         </div>
-                        {ticket.assignedTo && (
+                        {ticket.assigned_to && (
                           <div className="flex items-center">
-                            <span>Assigned to: {ticket.assignedTo}</span>
+                            <span>Assigned to: {ticket.assigned_to}</span>
                           </div>
                         )}
                       </div>
@@ -593,32 +529,43 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
           <form onSubmit={handleCreateTicket}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="title" className="text-right font-medium">
-                  Title
+                <label htmlFor="subject" className="text-right font-medium">
+                Subject
                 </label>
                 <Input
-                  id="title"
+                  id="subject"
                   className="col-span-3"
                   placeholder="Brief description of the issue"
                   required
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="customer" className="text-right font-medium">
-                  Customer
+              <div className="grid gap-4 py-4">
+              <div className="grid gap-4 py-4">
+                <label htmlFor="client_name" className="text-sm font-medium">
+                  Client Name *
                 </label>
-                <Select defaultValue="">
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="john-doe">John Doe</SelectItem>
-                    <SelectItem value="jane-smith">Jane Smith</SelectItem>
-                    <SelectItem value="robert-johnson">
-                      Robert Johnson
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="client_name"
+                  placeholder="Enter client name"
+                  value={newCallData.client_name}
+                  onChange={(e) => 
+                    setNewCallData(prev => ({ ...prev, client_name: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="grid gap-4 py-4">
+                <label htmlFor="client_phone" className="text-sm font-medium">
+                  Client Phone *
+                </label>
+                <Input
+                  id="client_phone"
+                  placeholder="Enter client phone number"
+                  value={newCallData.client_phone}
+                  onChange={(e) => 
+                    setNewCallData(prev => ({ ...prev, client_phone: e.target.value }))
+                  }
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="priority" className="text-right font-medium">
@@ -674,7 +621,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                     {selectedTicket.id}
                   </span>
                   <DialogTitle className="mt-1">
-                    {selectedTicket.title}
+                    {selectedTicket.subject}
                   </DialogTitle>
                 </div>
                 <div className="flex space-x-2">
@@ -700,15 +647,16 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p>
                       <span className="font-medium">Name:</span>{" "}
-                      {selectedTicket.customer.name}
+                      {selectedTicket.client_name}
                     </p>
                     <p>
                       <span className="font-medium">Email:</span>{" "}
-                      {selectedTicket.customer.email}
+                      {/* {selectedTicket.customer.email} */}
+                      email
                     </p>
                     <p>
                       <span className="font-medium">Phone:</span>{" "}
-                      {selectedTicket.customer.phone}
+                      {selectedTicket.client_phone}
                     </p>
                   </div>
                 </div>
@@ -725,7 +673,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                       </div>
                     </div>
 
-                    {selectedTicket.responses.map((response) => (
+                    {/* {selectedTicket.responses.map((response) => (
                       <div
                         key={response.id}
                         className="bg-gray-50 p-3 rounded-md"
@@ -750,7 +698,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                         </div>
                         <p className="mt-2">{response.text}</p>
                       </div>
-                    ))}
+                    ))} */}
                   </div>
                 </div>
 
@@ -803,7 +751,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                         Assign Ticket
                       </h4>
                       <Select
-                        defaultValue={selectedTicket.assignedTo || ""}
+                        defaultValue={selectedTicket.assigned_to || ""}
                         onValueChange={handleAssignTicket}
                       >
                         <SelectTrigger>
@@ -858,7 +806,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({ userRole = "agent" }) => {
                     <div>
                       <span className="text-sm font-medium">Responses:</span>
                       <span className="text-sm ml-2">
-                        {selectedTicket.responses.length}
+                        {/* {selectedTicket.responses.length} */}
                       </span>
                     </div>
                   </CardContent>

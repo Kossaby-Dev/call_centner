@@ -16,7 +16,7 @@ class CallsController extends Controller
 
         if ($isSupervisor) {
             // Get all calls with related data for supervisors
-            $calls = Call::with(['agent', 'customer'])
+            $calls = Call::with(['agent'])
                 ->latest()
                 ->paginate(10);
 
