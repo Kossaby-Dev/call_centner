@@ -20,7 +20,6 @@ return new class extends Migration
             $table->text('subject');
             $table->text('notes')->nullable();
             $table->integer('duration')->nullable()->comment('Duration in seconds');
-            $table->enum('call_type', ['incoming', 'outgoing']);
             $table->timestamps();
         });
     }

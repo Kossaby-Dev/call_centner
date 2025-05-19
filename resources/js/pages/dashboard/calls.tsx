@@ -14,12 +14,12 @@ interface Call {
     id: number;
   client_name: string;
   client_phone: string;
-  call_type: 'entrant' | 'sortant';
   status: "incoming" | "active" | "on-hold" | "ended";
   duration: number | null;
   notes: string | null;
   satisfaction_rating: number | null;
   created_at: string;
+  updated_at: string;
 }
 
 interface PageProps {

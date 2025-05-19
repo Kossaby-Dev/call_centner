@@ -17,7 +17,6 @@ class Call extends Model
         'client_phone',
         'subject',
         'notes',
-        'call_type',
         'status',
     ];
 

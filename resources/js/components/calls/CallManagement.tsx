@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/call/card";
+import CallDetails from "@/components/calls/CallDetails"
 import { Button } from "@/components/ui/call/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/call/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/call/avatar";
@@ -58,12 +59,18 @@ interface Call {
   id: number;
   client_name: string;
   client_phone: string;
-  call_type: 'entrant' | 'sortant';
   status: "incoming" | "active" | "on-hold" | "ended";
   duration: number | null;
   notes: string | null;
   satisfaction_rating: number | null;
   created_at: string;
+}
+
+interface Ticket {
+  call_id: number;
+  subject: string;
+  description: string;
+  priority:string;
 }
 
 interface CallManagementProps {
@@ -83,7 +90,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
   links,
 }) => {
   const { auth } = usePage<PageProps>().props;
-  const [activeCallId, setActiveCallId] = useState<number | null>(null);
+  const [activeCall, setActiveCall] = useState<Call | undefined>(undefined);
   const [isRecording, setIsRecording] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [createTicketDialogOpen, setCreateTicketDialogOpen] = useState(false);
@@ -92,11 +99,18 @@ const CallManagement: React.FC<CallManagementProps> = ({
   const [newCallData, setNewCallData] = useState({
     client_name: "",
     client_phone: "",
-    call_type: "entrant",
-    status: "active",
+    status: "on-hold",
     subject: "",
     notes: "",
   });
+
+  const [newTicketData, setNewTicketData] = useState<Ticket>({
+    call_id: 0,
+    description: "",
+    priority: "medium",
+    subject : "",
+  });
+
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '00:00';
@@ -118,37 +132,92 @@ const CallManagement: React.FC<CallManagementProps> = ({
     }
   };
 
-  const activeCall = calls.find((call) => call.id === activeCallId);
-
   const handleAnswerCall = (callId: number) => {
+    router.put(route('calls.update', callId), {
+      status: 'on-hold',
+    });
+  };
+
+  const handleShowDetailsCall = (callId: number) => {
+    setActiveCall(calls.find((call) => call.id === callId))
+  };
+
+  const handleStartCall = (callId: number, duration: number) => {
     router.put(route('calls.update', callId), {
       status: 'active',
     });
   };
 
-  const handleEndCall = (callId: number) => {
+
+  const handlePauseCall = (callId: number, duration: number) => {
     router.put(route('calls.update', callId), {
-      status: 'ended',
+      status: 'on-hold',
+      duration: duration,
     });
   };
 
+  const handleNewTicket = (callId: number) => {
+    setNewTicketData(prev => ({ ...prev, call_id: callId }))
+    setCreateTicketDialogOpen(true)
+  };
+
+  const handleEndWithDurationCall = (callId: number, duration: number) => {
+    router.put(route('calls.update', callId), {
+      status: 'ended',
+      duration: duration,
+    }, {
+      onSuccess: () => {
+        setActiveCall(undefined)
+      }
+    });
+  };
+
+  const handleCallDetails = (callId: number) => {
+    setActiveCall(calls.find(call => call.id === callId))
+  };
+
+  const handleEndCall = (callId: number) => {
+    router.put(route('calls.update', callId), {
+      status: 'ended',
+    }, {
+      onSuccess: () => {
+        setActiveCall(undefined)
+      },
+    });
+
+  };
+
   const handleTransferCall = (agentId: any) => {
-    if (activeCallId) {
-      router.put(route('calls.update', activeCallId), {
-        agent_id: agentId,
+    if (activeCall) {
+      router.put(route('calls.update', activeCall.id), {
+        user_id: agentId,
+      }, {
+        onSuccess: () => {
+          setTransferDialogOpen(false);
+          setActiveCall(undefined)
+        },
+        // onError: (errors) => {
+        //   alert('Error creating call: ' + Object.values(errors).join(', '));
+        // },
       });
-      setTransferDialogOpen(false);
     }
   };
 
   const handleCreateTicket = () => {
-    if (activeCallId) {
+    if (activeCall) {
       router.post(route('tickets.store'), {
-        call_id: activeCallId,
+        call_id: activeCall.id,
         notes: callNotes,
-      });
-      setCreateTicketDialogOpen(false);
-      setCallNotes("");
+      },
+        {
+          onSuccess: () => {
+            setCreateTicketDialogOpen(false);
+            setCallNotes("");
+          },
+          // onError: (errors) => {
+          //   alert('Error creating call: ' + Object.values(errors).join(', '));
+          // },
+        });
     }
   };
 
@@ -160,20 +229,18 @@ const CallManagement: React.FC<CallManagementProps> = ({
 
     router.post(route('calls.store'), {
       ...newCallData,
-      user_id: auth.user.id,
-      call_time: new Date().toISOString(),
-      status: 'active',
+      call_time: new Date().toISOString()
     }, {
       onSuccess: () => {
         setNewCallDialogOpen(false);
         setNewCallData({
           client_name: "",
           client_phone: "",
-          call_type: "entrant",
-          status: "active",
+          status: "on-hold",
           subject: "",
           notes: "",
         });
+        setActiveCall(calls.find((call) => call.status === "active") || undefined)
       },
       onError: (errors) => {
         alert('Error creating call: ' + Object.values(errors).join(', '));
@@ -186,8 +253,8 @@ const CallManagement: React.FC<CallManagementProps> = ({
       <div className="flex flex-col space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">Call Management</h2>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="flex items-center gap-2"
             onClick={() => setNewCallDialogOpen(true)}
           >
@@ -204,14 +271,14 @@ const CallManagement: React.FC<CallManagementProps> = ({
           </TabsList>
 
           <TabsContent value="active" className="space-y-4 mt-4">
-            {calls.filter((call) => ["active", "on-hold"].includes(call.status)).length  > 0 ? (
+            {calls.filter((call) => ["active", "on-hold"].includes(call.status)).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {calls
                   .filter((call) => ["active", "on-hold"].includes(call.status))
                   .map((call) => (
                     <Card
                       key={call.id}
-                      className={`overflow-hidden ${call.id === activeCallId ? "border-primary" : ""}`}
+                      className={`overflow-hidden ${call.id === activeCall?.id ? "border-primary" : ""}`}
                     >
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-center">
@@ -222,8 +289,8 @@ const CallManagement: React.FC<CallManagementProps> = ({
                             <CardTitle>{call.client_name}</CardTitle>
                           </div>
                           <Badge variant={
-                              call.status === "active" ? "default" : "outline"
-                            }>
+                            call.status === "active" ? "default" : "outline"
+                          }>
                             {call.status === "active" ? "Active" : "On Hold"}
                           </Badge>
                         </div>
@@ -250,7 +317,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setActiveCallId(call.id)}
+                          onClick={() => handleShowDetailsCall(call.id)}
                         >
                           View Details
                         </Button>
@@ -271,7 +338,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
                   <p className="text-muted-foreground">
                     No active calls at the moment
                   </p>
-                  <Button variant="outline" className="mt-4">
+                  <Button variant="outline" className="mt-4" onClick={() => setNewCallDialogOpen(true)}>
                     <PhoneCall size={16} className="mr-2" /> Make a call
                   </Button>
                 </CardContent>
@@ -283,7 +350,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
             {calls.filter((call) => ["incoming"].includes(call.status)).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {calls
-                  .filter((call) => call.status === 'incoming')
+                  .filter((call) => ["incoming"].includes(call.status))
                   .map((call) => (
                     <Card key={call.id}>
                       <CardHeader className="pb-2">
@@ -298,7 +365,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
                           {new Date(call.created_at).toLocaleString()}
                         </CardDescription>
                       </CardHeader>
-                      <CardFooter className="flex justify-between pt-0"> 
+                      <CardFooter className="flex justify-between pt-0">
                         <Button
                           variant="outline"
                           size="sm"
@@ -316,7 +383,10 @@ const CallManagement: React.FC<CallManagementProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCreateTicketDialogOpen(true)}
+                          onClick={() => {
+                            setNewTicketData(prev => ({ ...prev, call_id: call.id }))
+                            setCreateTicketDialogOpen(true)
+                          }}
                         >
                           <MessageSquare size={16} className="mr-1" /> Create Ticket
                         </Button>
@@ -334,10 +404,10 @@ const CallManagement: React.FC<CallManagementProps> = ({
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4 mt-4">
-            {calls.filter((call) => call.status === 'ended').length > 0 ? (
+            {calls.filter((call) => ["ended"].includes(call.status)).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {calls
-                  .filter((call) => call.status === 'ended')
+                  .filter((call) => ["ended"].includes(call.status))
                   .map((call) => (
                     <Card key={call.id}>
                       <CardHeader className="pb-2">
@@ -380,6 +450,197 @@ const CallManagement: React.FC<CallManagementProps> = ({
           </TabsContent>
         </Tabs>
 
+
+        {activeCall && <CallDetails
+          call={activeCall}
+          userRole={userRole}
+          agents={agents}
+          onStartCall={handleStartCall}
+          onPauseCall={handlePauseCall}
+          onEndCall={handleEndWithDurationCall}
+          onNewTicket={handleNewTicket}
+        />}
+
+
+
+        {/* New Call Dialog */}
+        <Dialog open={newCallDialogOpen} onOpenChange={setNewCallDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Call</DialogTitle>
+              <DialogDescription>
+                Enter the details for the new call
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label htmlFor="subject" className="text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="subject"
+                  placeholder="Enter call subject"
+                  value={newCallData.subject}
+                  onChange={(e) =>
+                    setNewCallData(prev => ({ ...prev, subject: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="client_name" className="text-sm font-medium">
+                  Client Name *
+                </label>
+                <Input
+                  id="client_name"
+                  placeholder="Enter client name"
+                  value={newCallData.client_name}
+                  onChange={(e) =>
+                    setNewCallData(prev => ({ ...prev, client_name: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="client_phone" className="text-sm font-medium">
+                  Client Phone *
+                </label>
+                <Input
+                  id="client_phone"
+                  placeholder="Enter client phone number"
+                  value={newCallData.client_phone}
+                  onChange={(e) =>
+                    setNewCallData(prev => ({ ...prev, client_phone: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="status" className="text-sm font-medium">
+                  Status
+                </label>
+                <Select
+                  value={newCallData.status}
+                  onValueChange={(value) =>
+                    setNewCallData(prev => ({ ...prev, status: value }))
+                  }
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Select Call Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="on-hold">On Hold</SelectItem>
+                    <SelectItem value="incoming">Incoming</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="notes" className="text-sm font-medium">
+                  Notes
+                </label>
+                <Input
+                  id="notes"
+                  placeholder="Enter call notes"
+                  value={newCallData.notes}
+                  onChange={(e) =>
+                    setNewCallData(prev => ({ ...prev, notes: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewCallDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateNewCall}>Create Call</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
+        {/* New Ticket Dialog */}
+        <Dialog
+          open={createTicketDialogOpen}
+          onOpenChange={setCreateTicketDialogOpen}
+        >
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <MessageSquare size={16} className="mr-1" /> Create
+              Ticket
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Support Ticket</DialogTitle>
+              <DialogDescription>
+                Create a ticket for this call to track follow-up
+                actions.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label htmlFor="t-subject" className="text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="t-subject"
+                  placeholder="Enter Ticket subject"
+                  value={newTicketData.subject}
+                  onChange={(e) =>
+                    setNewTicketData(prev => ({ ...prev, subject: e.target.value }))
+                  } />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="t-description" className="text-sm font-medium">
+                  Subject
+                </label>
+                <Input
+                  id="t-description"
+                  placeholder="Enter Ticket description"
+                  value={newTicketData.description}
+                  onChange={(e) =>
+                    setNewTicketData(prev => ({ ...prev, description: e.target.value }))
+                  } />
+              </div>
+              <div className="grid gap-2">
+                <label
+                  htmlFor="t-priority"
+                  className="text-sm font-medium"
+                >
+                  Priority
+                </label>
+                <Select
+                 value={newTicketData.priority}
+                 onValueChange={(value) =>
+                   setNewTicketData(prev => ({ ...prev, priority: value }))
+                 }
+                >
+                  <SelectTrigger id="t-priority">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setCreateTicketDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleCreateTicket}>
+                Create Ticket
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
+
         {/* Transfer Call Dialog */}
         <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
           <DialogContent>
@@ -406,325 +667,6 @@ const CallManagement: React.FC<CallManagementProps> = ({
           </DialogContent>
         </Dialog>
 
-        
-        {activeCall && (
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Active Call Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="flex flex-col items-center justify-center">
-                  <Avatar className="h-24 w-24 mb-4">
-                    {/* <AvatarImage src={activeCall.callerAvatar} /> */}
-                    <AvatarFallback className="text-2xl">
-                      {activeCall.client_name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h3 className="text-xl font-semibold">
-                    {activeCall.client_name}
-                  </h3>
-                  <p className="text-muted-foreground">
-                    {activeCall.client_phone}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div
-                      className={`w-3 h-3 rounded-full ${getStatusColor(activeCall.status)}`}
-                    ></div>
-                    <span className="capitalize">{activeCall.status}</span>
-                  </div>
-                  <p className="mt-2 text-sm">
-                    <Clock size={14} className="inline mr-1" />
-                    {formatDuration(activeCall.duration)}
-                  </p>
-                </div>
-
-                <div className="col-span-2">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Call Notes</h4>
-                      <Input
-                        placeholder="Add notes about this call..."
-                        value={callNotes}
-                        onChange={(e) => setCallNotes(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant={isRecording ? "destructive" : "outline"}
-                        size="sm"
-                        onClick={() => setIsRecording(!isRecording)}
-                      >
-                        {isRecording ? (
-                          <MicOff size={16} className="mr-1" />
-                        ) : (
-                          <Mic size={16} className="mr-1" />
-                        )}
-                        {isRecording ? "Stop Recording" : "Start Recording"}
-                      </Button>
-
-                      <Dialog
-                        open={transferDialogOpen}
-                        onOpenChange={setTransferDialogOpen}
-                      >
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <PhoneForwarded size={16} className="mr-1" />{" "}
-                            Transfer
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Transfer Call</DialogTitle>
-                            <DialogDescription>
-                              Select an agent to transfer this call to.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                              <Select onValueChange={handleTransferCall}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select an agent" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {/* {availableAgents.map((agent) => (
-                                    <SelectItem
-                                      key={agent.id}
-                                      value={agent.id}
-                                      disabled={agent.status !== "available"}
-                                    >
-                                      {agent.name}{" "}
-                                      {agent.status !== "available" && "(Busy)"}
-                                    </SelectItem>
-                                  ))} */}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button
-                              variant="outline"
-                              onClick={() => setTransferDialogOpen(false)}
-                            >
-                              Cancel
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Dialog
-                        open={createTicketDialogOpen}
-                        onOpenChange={setCreateTicketDialogOpen}
-                      >
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <MessageSquare size={16} className="mr-1" /> Create
-                            Ticket
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Create Support Ticket</DialogTitle>
-                            <DialogDescription>
-                              Create a ticket for this call to track follow-up
-                              actions.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                              <label
-                                htmlFor="ticket-title"
-                                className="text-sm font-medium"
-                              >
-                                Ticket Title
-                              </label>
-                              <Input
-                                id="ticket-title"
-                                placeholder="Enter ticket title"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <label
-                                htmlFor="ticket-description"
-                                className="text-sm font-medium"
-                              >
-                                Description
-                              </label>
-                              <Input
-                                id="ticket-description"
-                                placeholder="Enter ticket description"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <label
-                                htmlFor="ticket-priority"
-                                className="text-sm font-medium"
-                              >
-                                Priority
-                              </label>
-                              <Select>
-                                <SelectTrigger id="ticket-priority">
-                                  <SelectValue placeholder="Select priority" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="low">Low</SelectItem>
-                                  <SelectItem value="medium">Medium</SelectItem>
-                                  <SelectItem value="high">High</SelectItem>
-                                  <SelectItem value="urgent">Urgent</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button
-                              variant="outline"
-                              onClick={() => setCreateTicketDialogOpen(false)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button onClick={handleCreateTicket}>
-                              Create Ticket
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleEndCall(activeCall.id)}
-                      >
-                        <PhoneOff size={16} className="mr-1" /> End Call
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-       
-
-        {/* New Call Dialog */}
-        <Dialog open={newCallDialogOpen} onOpenChange={setNewCallDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Call</DialogTitle>
-              <DialogDescription>
-                Enter the details for the new call
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <label htmlFor="client_name" className="text-sm font-medium">
-                  Client Name *
-                </label>
-                <Input
-                  id="client_name"
-                  placeholder="Enter client name"
-                  value={newCallData.client_name}
-                  onChange={(e) => 
-                    setNewCallData(prev => ({ ...prev, client_name: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <label htmlFor="client_phone" className="text-sm font-medium">
-                  Client Phone *
-                </label>
-                <Input
-                  id="client_phone"
-                  placeholder="Enter client phone number"
-                  value={newCallData.client_phone}
-                  onChange={(e) => 
-                    setNewCallData(prev => ({ ...prev, client_phone: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <label htmlFor="call_type" className="text-sm font-medium">
-                  Call Type
-                </label>
-                <Select
-                  value={newCallData.call_type}
-                  onValueChange={(value) => 
-                    setNewCallData(prev => ({ ...prev, call_type: value }))
-                  }
-                >
-                  <SelectTrigger id="call_type">
-                    <SelectValue placeholder="Select call type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="entrant">Entrant</SelectItem>
-                    <SelectItem value="sortant">Sortant</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="call_type" className="text-sm font-medium">
-                  Status
-                </label>
-                <Select
-                  value={newCallData.status}
-                  onValueChange={(value) => 
-                    setNewCallData(prev => ({ ...prev, status: value }))
-                  }
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select Call Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="on-hold">On Hold</SelectItem>
-                    <SelectItem value="incoming">Incoming</SelectItem>
-                    <SelectItem value="ended">Ended</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <label htmlFor="subject" className="text-sm font-medium">
-                  Subject
-                </label>
-                <Input
-                  id="subject"
-                  placeholder="Enter call subject"
-                  value={newCallData.subject}
-                  onChange={(e) => 
-                    setNewCallData(prev => ({ ...prev, subject: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <label htmlFor="notes" className="text-sm font-medium">
-                  Notes
-                </label>
-                <Input
-                  id="notes"
-                  placeholder="Enter call notes"
-                  value={newCallData.notes}
-                  onChange={(e) => 
-                    setNewCallData(prev => ({ ...prev, notes: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setNewCallDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateNewCall}>Create Call</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

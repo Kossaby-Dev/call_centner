@@ -23,7 +23,6 @@ class GetCallsController extends Controller
 
             // Get active agents for filtering
             $agents = User::where('role', 'agent')
-                ->where('status', 'online')
                 ->get(['id', 'name']);
 
             return Inertia::render('dashboard/calls', [
@@ -36,7 +35,7 @@ class GetCallsController extends Controller
             $calls = $user->calls()
                 ->latest()
                 ->paginate(10);
-
+                
             return Inertia::render('dashboard/calls', [
                 'userRole' => 'agent',
                 'calls' => $calls,

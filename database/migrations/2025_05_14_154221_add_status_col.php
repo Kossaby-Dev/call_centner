@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('calls', function (Blueprint $table) {
-            $table->string('status')->default('active');
+            $table->enum('status', ["incoming" ,"active" , "on-hold", "ended"])->default('incoming');
         });
     }
 

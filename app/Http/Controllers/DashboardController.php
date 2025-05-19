@@ -32,9 +32,9 @@ class DashboardController extends Controller
                 ->withCount(['calls' => function ($query) {
                     $query->whereDate('created_at', today());
                 }])
-                ->withCount(['tickets' => function ($query) {
-                    $query->where('status', 'open');
-                }])
+                // ->withCount(['tickets' => function ($query) {
+                //     $query->where('status', 'open');
+                // }])
                 ->get();
 
             return Inertia::render('dashboard/overview', [
