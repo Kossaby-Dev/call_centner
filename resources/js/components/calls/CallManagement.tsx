@@ -111,6 +111,8 @@ const CallManagement: React.FC<CallManagementProps> = ({
     subject : "",
   });
 
+  const [transferCallID, setTransferCallID] = useState(0)
+
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '00:00';
@@ -161,6 +163,11 @@ const CallManagement: React.FC<CallManagementProps> = ({
     setCreateTicketDialogOpen(true)
   };
 
+  const handleTransferCallDialog = (callId: number) => {
+    setTransferCallID(callId)
+    setTransferDialogOpen(true)
+  };
+
   const handleEndWithDurationCall = (callId: number, duration: number) => {
     router.put(route('calls.update', callId), {
       status: 'ended',
@@ -187,7 +194,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
 
   };
 
-  const handleTransferCall = (agentId: any) => {
+  const handleTransferCall = (agentId: number) => {
     if (activeCall) {
       router.put(route('calls.update', activeCall.id), {
         user_id: agentId,
@@ -204,21 +211,25 @@ const CallManagement: React.FC<CallManagementProps> = ({
   };
 
   const handleCreateTicket = () => {
-    if (activeCall) {
+   
       router.post(route('tickets.store'), {
-        call_id: activeCall.id,
-        notes: callNotes,
+        ...newTicketData
       },
         {
           onSuccess: () => {
             setCreateTicketDialogOpen(false);
-            setCallNotes("");
+            setNewTicketData({
+              call_id: 0,
+              description: "",
+              priority: "medium",
+              subject : "",
+            });
           },
-          // onError: (errors) => {
-          //   alert('Error creating call: ' + Object.values(errors).join(', '));
-          // },
+          onError: (errors) => {
+            alert('Error creating Ticket: ' + Object.values(errors).join(', '));
+          },
         });
-    }
+  
   };
 
   const handleCreateNewCall = () => {
@@ -459,6 +470,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
           onPauseCall={handlePauseCall}
           onEndCall={handleEndWithDurationCall}
           onNewTicket={handleNewTicket}
+          onTransferCall={handleTransferCallDialog}
         />}
 
 
@@ -561,12 +573,6 @@ const CallManagement: React.FC<CallManagementProps> = ({
           open={createTicketDialogOpen}
           onOpenChange={setCreateTicketDialogOpen}
         >
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <MessageSquare size={16} className="mr-1" /> Create
-              Ticket
-            </Button>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Support Ticket</DialogTitle>
@@ -590,7 +596,7 @@ const CallManagement: React.FC<CallManagementProps> = ({
               </div>
               <div className="grid gap-2">
                 <label htmlFor="t-description" className="text-sm font-medium">
-                  Subject
+                  Description
                 </label>
                 <Input
                   id="t-description"

@@ -6,10 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Services\EmailService;
+use App\Services\NotificationService;
 use Inertia\Inertia;
 
 class AddTicketController extends Controller
 {
+    protected $emailService;
+    protected $notificationService;
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -25,12 +30,12 @@ class AddTicketController extends Controller
         $ticket->save();
 
         // Envoi d'email si un agent est assigné au ticket
-        if ($ticket->assigned_to) {
-            $this->emailService->sendTicketAssignedEmail($ticket);
-        }
+        // if ($ticket->assigned_to) {
+        //     $this->emailService->sendTicketAssignedEmail($ticket);
+        // }
 
         // Notification pour les superviseurs
-        $this->notificationService->notifySupervisorsNewTicket($ticket);
+        // $this->notificationService->notifySupervisorsNewTicket($ticket);
 
         return back()->with('success', 'Ticket recorded successfully.');
     }

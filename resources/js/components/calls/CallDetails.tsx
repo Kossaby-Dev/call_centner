@@ -59,7 +59,8 @@ interface CallDetailsProps {
     onPauseCall?: (callId: number, duration: number) => void;
     onEndCall?: (callId: number, duration: number) => void;
     onNewTicket?: (callId: number) => void;
-    
+    onTransferCall?: (callId: number) => void
+
 }
 
 const CallDetails: React.FC<CallDetailsProps> = ({
@@ -70,6 +71,7 @@ const CallDetails: React.FC<CallDetailsProps> = ({
     onPauseCall = () => { },
     onEndCall = () => { },
     onNewTicket = () => { },
+    onTransferCall = () => {},
 }) => {
     // Mock data for demonstration
     const [activeCall, setActiveCall] = useState(call);
@@ -119,20 +121,25 @@ const CallDetails: React.FC<CallDetailsProps> = ({
         setActiveCall(prev => ({ ...prev, notes }));
     };
 
-    const handleTransferCall = (agentId: string) => {
-        console.log("Transferring call to agent:", agentId);
-        setTransferDialogOpen(false);
-    };
+    // const handleTransferCall = (agentId: string) => {
+    //     console.log("Transferring call to agent:", agentId);
+    //     setTransferDialogOpen(false);
+    // };
 
     const handleCreateTicket = () => {
         onNewTicket(activeCall.id)
+    };
+
+
+    const handleTransferCall = () => {
+        onTransferCall(activeCall.id)
     };
 
     const handleEndCall = (callId: number) => {
         if (!isRecording) {
             onEndCall(callId, activeCall.duration || 0)
         }
-        
+
     };
 
     const getStatusColor = (status: string) => {
@@ -218,6 +225,19 @@ const CallDetails: React.FC<CallDetailsProps> = ({
                                         <Mic size={16} className="mr-1" />
                                     )}
                                     {isRecording ? "Stop Recording" : "Start Recording"}
+                                </Button>
+                                <Button variant="outline"
+                                    size="sm"
+                                    onClick={handleTransferCall}>
+                                    <PhoneForwarded size={16} className="mr-1" />{" "}
+                                    Transfer
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCreateTicket}
+                                >
+                                    <MessageSquare size={16} className="mr-1" /> Create Ticket
                                 </Button>
                                 <Button
                                     variant="destructive"
