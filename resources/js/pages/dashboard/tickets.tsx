@@ -13,26 +13,27 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 
 interface Ticket {
-    id: string;
+    id: number;
     subject: string;
     description: string;
     status: "open" | "in-progress" | "resolved" | "closed";
     priority: "low" | "medium" | "high" | "urgent";
-    createdAt: string;
-    updatedAt: string;
-    assigned_to?: string;
+    created_at: string;
+    updated_at: string;
+    assignedTo?: string;
     client_name: string;
     client_phone: string;
-    // responses: {
-    //   id: string;
-    //   text: string;
-    //   createdAt: string;
-    //   user: {
-    //     name: string;
-    //     role: string;
-    //   };
-    // }[];
-  }
+    ticket_number: string;
+    responses: {
+        id: string;
+        text: string;
+        createdAt: string;
+        user: {
+            name: string;
+            role: string;
+        };
+    }[];
+}
 
 interface PageProps {
     [key: string]: any;
