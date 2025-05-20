@@ -14,7 +14,7 @@ class GetTicketsController extends Controller
     {
         $user = auth()->user();
         if ($user->isSupervisor()) {
-            $tickets = Ticket::with(['creator', 'assignee'])->latest()->paginate(15);
+            $tickets = Ticket::with(['creator', 'assignee', 'call', 'comments.user'])->latest()->paginate(15);
             return Inertia::render('dashboard/tickets', [
                 'userRole' => 'supervisor',
                 'tickets' => $tickets,
@@ -22,7 +22,7 @@ class GetTicketsController extends Controller
         } else {
             $tickets = Ticket::where('created_by', $user->id)
                 ->orWhere('assigned_to', $user->id)
-                ->with(['creator', 'assignee'])
+                ->with(['creator', 'assignee', 'call', 'comments.user'])
                 ->latest()
                 ->paginate(15);
                 return Inertia::render('dashboard/tickets', [

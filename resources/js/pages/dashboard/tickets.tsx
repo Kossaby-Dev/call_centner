@@ -21,13 +21,16 @@ interface Ticket {
     created_at: string;
     updated_at: string;
     assignedTo?: string;
-    client_name: string;
-    client_phone: string;
     ticket_number: string;
-    responses: {
-        id: string;
-        text: string;
-        createdAt: string;
+    call: {
+        client_name: string;
+        client_phone: string;
+    };
+    comments: {
+        ticket_id: number;
+        user_id: number;
+        comment: string;
+        created_at: string;
         user: {
             name: string;
             role: string;
