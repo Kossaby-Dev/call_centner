@@ -113,7 +113,7 @@ class NotificationService
         ]);
         
         $notification->save();
-        $this->broadcastNotification($notification);
+       // $this->broadcastNotification($notification);
     }
 
     /**

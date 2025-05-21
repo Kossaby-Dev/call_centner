@@ -42,11 +42,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('dashboard/tickets/{ticket}/comments/{comment}', [TicketCommentController::class, 'update'])->name('comments.update');
     Route::delete('dashboard/tickets/{ticket}/comments/{comment}', [TicketCommentController::class, 'destroy'])->name('comments.destroy');
 
-     // Notifications routes
-     Route::get('dashboard/notifications', [NotificationController::class, 'index'])->name('notifications');
-     Route::post('dashboard/notifications/{notification}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
-     Route::put('dashboard/notifications', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-     Route::delete('dashboard/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+     // API routes for notifications (used by components)
+    Route::prefix('api')->group(function () {
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::put('notifications/{notification}/mark-as-read', [NotificationController::class, 'markAsRead']);
+        Route::put('notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead']);
+        Route::put('notifications/{notification}', [NotificationController::class, 'destroy']);
+    });
 
     Route::get('dashboard/agents', function () {
         return Inertia::render('dashboard/agents');

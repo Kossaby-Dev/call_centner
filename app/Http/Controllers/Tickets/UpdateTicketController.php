@@ -33,16 +33,16 @@ class UpdateTicketController extends Controller
         $ticket->update($validated);
 
         // Si le statut a changé en "résolu", envoyer une notification/email
-        // if ($oldStatus !== 'resolved' && $ticket->status === 'resolved') {
-        //     $this->emailService->sendTicketResolvedEmail($ticket);
-        //     $this->notificationService->notifyTicketResolved($ticket);
-        // }
+        if ($oldStatus !== 'resolved' && $ticket->status === 'resolved') {
+          //  $this->emailService->sendTicketResolvedEmail($ticket);
+            $this->notificationService->notifyTicketResolved($ticket);
+        }
 
         // Si l'assignation a changé, envoyer une notification/email
-        // if ($oldAssignee !== $ticket->assigned_to && $ticket->assigned_to) {
-        //     $this->emailService->sendTicketAssignedEmail($ticket);
-        //     $this->notificationService->notifyTicketAssigned($ticket);
-        // }
+        if ($oldAssignee !== $ticket->assigned_to && $ticket->assigned_to) {
+           // $this->emailService->sendTicketAssignedEmail($ticket);
+            $this->notificationService->notifyTicketAssigned($ticket);
+        }
 
         return back()->with('success', 'Ticket updated successfully.');
     }

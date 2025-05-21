@@ -34,7 +34,7 @@ class TicketCommentController extends Controller
             'comment' => $request->comment
         ]);
 
-        return response()->json($comment, 201);
+        return back()->with('success', 'Comment recorded successfully.');
     }
 
     /**

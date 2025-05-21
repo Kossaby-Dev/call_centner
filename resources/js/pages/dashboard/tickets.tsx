@@ -20,7 +20,11 @@ interface Ticket {
     priority: "low" | "medium" | "high" | "urgent";
     created_at: string;
     updated_at: string;
-    assignedTo?: string;
+    assigned_to?: number;
+    assignee?: {
+        id: number;
+        name: string;
+    };
     ticket_number: string;
     call: {
         client_name: string;
@@ -67,6 +71,7 @@ export default function Tickets() {
                         userRole={userRole}
                         tickets={tickets.data}
                         links={tickets.links}
+                        agents={agents}
                     />
                 </div>
             </div>

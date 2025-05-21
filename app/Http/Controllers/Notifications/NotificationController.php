@@ -13,7 +13,7 @@ class NotificationController extends Controller
      */
     public function index()
     {
-        $user = $request->user();
+        $user = auth()->user();
         $notifications = $user->notifications()
             ->latest()
             ->paginate(15);

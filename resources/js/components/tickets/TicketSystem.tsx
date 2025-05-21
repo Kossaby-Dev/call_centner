@@ -65,7 +65,11 @@ interface Ticket {
   priority: "low" | "medium" | "high" | "urgent";
   created_at: string;
   updated_at: string;
-  assignedTo?: string;
+  assigned_to?: number;
+  assignee?: {
+    id: number;
+    name: string;
+  };
   ticket_number: string;
   call: {
     client_name: string;
@@ -86,12 +90,17 @@ interface Ticket {
 interface TicketSystemProps {
   userRole?: string;
   tickets: Ticket[];
+  agents?: Array<{
+    id: number;
+    name: string;
+  }>;
   links: any;
 }
 
 const TicketSystem: React.FC<TicketSystemProps> = ({
   userRole = "agent",
   tickets,
+  agents,
   links
 }) => {
   const { auth } = usePage<PageProps>().props;
@@ -164,9 +173,6 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
 
   const handleStatusChange = (status: string) => {
     if (selectedTicket) {
-      // In a real app, this would update the ticket status via API
-      console.log(`Updating ticket ${selectedTicket.ticket_number} status to ${status}`);
-
       // Update the ticket status in our local state
       const updatedTicket = {
         ...selectedTicket,
@@ -185,7 +191,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
 
       // Add the ticket to the new column
       newColumns[status].tickets.push(updatedTicket);
-
+      handleUpdateStatusTicket(selectedTicket.id, status)
       setTicketColumns(newColumns);
       setSelectedTicket(updatedTicket);
       setIsTicketDetailOpen(false);
@@ -195,7 +201,9 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
   const handleAssignTicket = (agent: string) => {
     if (selectedTicket) {
       // In a real app, this would assign the ticket via API
-      console.log(`Assigning ticket ${selectedTicket.ticket_number} to ${agent}`);
+      router.put(route('tickets.update', selectedTicket.id), {
+        assigned_to: parseInt(agent)
+      });
       // For demo purposes, we'll just close the dialog
       setIsTicketDetailOpen(false);
     }
@@ -204,12 +212,12 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
   const handleAddResponse = () => {
     if (selectedTicket && newResponse.trim()) {
       // In a real app, this would add a response via API
-      console.log(
-        `Adding response to ticket ${selectedTicket.ticket_number}: ${newResponse}`,
-      );
+      router.post(route('comments.store', selectedTicket.id), {
+        comment: newResponse,
+        user_id: auth.user.id
+      });
       setNewResponse("");
-      // For demo purposes, we'll just acknowledge
-      alert("Response added successfully!");
+      setIsTicketDetailOpen(false);
     }
   };
   const getPriorityColor = (priority: string) => {
@@ -472,9 +480,9 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
                           <User className="mr-1 h-4 w-4" />
                           <span>{ticket.call.client_name}</span>
                         </div>
-                        {ticket.assignedTo && (
+                        {ticket.assigned_to && (
                           <div className="flex items-center">
-                            <span>Assigned to: {ticket.assignedTo}</span>
+                            <span>Assigned to: {ticket.assignee?.name}</span>
                           </div>
                         )}
                       </div>
@@ -518,7 +526,7 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
               <div className="flex justify-between items-center">
                 <div>
                   <span className="text-sm font-medium text-gray-500">
-                    {selectedTicket.id}
+                    {selectedTicket.ticket_number}
                   </span>
                   <DialogTitle className="mt-1">
                     {selectedTicket.subject}
@@ -651,37 +659,22 @@ const TicketSystem: React.FC<TicketSystemProps> = ({
                         Assign Ticket
                       </h4>
                       <Select
-                        defaultValue={selectedTicket.assignedTo || ""}
+                        defaultValue={selectedTicket.assigned_to?.toString() || "0"}
                         onValueChange={handleAssignTicket}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select agent" />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* <SelectItem value="">Unassigned</SelectItem> */}
-                          <SelectItem value="Sarah Johnson">
-                            Sarah Johnson
-                          </SelectItem>
-                          <SelectItem value="Michael Chen">
-                            Michael Chen
-                          </SelectItem>
-                          <SelectItem value="Emily Rodriguez">
-                            Emily Rodriguez
-                          </SelectItem>
+                          <SelectItem value="0">Unassigned</SelectItem>
+                         
+                          {agents?.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id.toString()}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    <Separator />
-
-                    <div className="pt-2">
-                      <Button variant="outline" className="w-full mb-2">
-                        <AlertCircle className="mr-2 h-4 w-4" /> Escalate
-                      </Button>
-                      <Button variant="outline" className="w-full">
-                        <CheckCircle className="mr-2 h-4 w-4" /> Mark as
-                        Resolved
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
