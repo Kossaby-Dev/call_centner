@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Tickets;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Models\Notification; // Add your custom notification model
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Notifications\TicketAssigned;
 
 class UpdateTicketController extends Controller
 {
@@ -34,16 +36,40 @@ class UpdateTicketController extends Controller
 
         // Si le statut a changé en "résolu", envoyer une notification/email
         if ($oldStatus !== 'resolved' && $ticket->status === 'resolved') {
-          //  $this->emailService->sendTicketResolvedEmail($ticket);
-            $this->notificationService->notifyTicketResolved($ticket);
+            // Save resolved notification to your custom notifications table
+            if ($ticket->assigned_to) {
+                Notification::create([
+                    'user_id' => $ticket->assigned_to,
+                    'title' => 'Ticket Resolved',
+                    'message' => "Ticket '{$ticket->subject}' has been marked as resolved.",
+                    'type' => 'ticket_resolved',
+                    'related_type' => 'ticket',
+                    'related_id' => $ticket->id,
+                    'read' => false,
+                ]);
+            }
         }
 
         // Si l'assignation a changé, envoyer une notification/email
         if ($oldAssignee !== $ticket->assigned_to && $ticket->assigned_to) {
-           // $this->emailService->sendTicketAssignedEmail($ticket);
-            $this->notificationService->notifyTicketAssigned($ticket);
+            $assigned_to_user = User::find($ticket->assigned_to);
+            if ($assigned_to_user) {
+                // Send email notification
+                $assigned_to_user->notify(new TicketAssigned($ticket));
+                
+                // Save to your custom notifications table
+                Notification::create([
+                    'user_id' => $ticket->assigned_to,
+                    'title' => 'New Ticket Assigned',
+                    'message' => "You have been assigned to ticket: '{$ticket->subject}'",
+                    'type' => 'ticket_assigned',
+                    'related_type' => 'ticket',
+                    'related_id' => $ticket->id,
+                    'read' => false,
+                ]);
+            }
         }
 
         return back()->with('success', 'Ticket updated successfully.');
     }
-} 
+}
